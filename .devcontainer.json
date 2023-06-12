@@ -1,7 +1,10 @@
 {
-    "name": "ludeeus/integration_blueprint",
+    "name": "rbtying/hass-onvif-ptz",
     "image": "mcr.microsoft.com/vscode/devcontainers/python:0-3.10-bullseye",
     "postCreateCommand": "scripts/setup",
+    "runArgs": [
+        "--network=host"
+    ],
     "forwardPorts": [
         8123
     ],

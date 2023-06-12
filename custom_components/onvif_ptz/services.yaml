@@ -1,0 +1,46 @@
+relative_ptz:
+  name: PTZ (RelativeMove)
+  description: If your ONVIF camera supports RelativeMove PTZ, you will be able
+  to pan, tilt or zoom your camera. Not all cameras which support PTZ support
+  RelativeMove
+  target:
+    entity:
+      integration: onvif_ptz
+      domain: ptz
+  fields:
+    tilt:
+      name: Tilt
+      description: Relative movement (tilt)
+      selector:
+        number:
+          default: 0
+          step: 0.01
+    pan:
+      name: Pan
+      description: Relative movement (pan)
+      selector:
+        number:
+          default: 0
+          step: 0.01
+    zoom:
+      name: Zoom
+      description: Relative movement (zoom)
+      selector:
+        number:
+          default: 0
+          step: 0.01
+    pan_speed:
+      name: Pan Speed (optional)
+      selector:
+        number:
+          step: 0.01
+    tilt_speed:
+      name: Tilt Speed (optional)
+      selector:
+        number:
+          step: 0.01
+    zoom_speed:
+      name: Zoom Speed (optional)
+      selector:
+        number:
+          step: 0.01

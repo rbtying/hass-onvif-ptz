@@ -1,0 +1,16 @@
+{
+  "domain": "onvif_ptz",
+  "name": "ONVIF PTZ",
+  "codeowners": [
+    "@rbtying"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/rbtying/hass-onvif-ptz",
+  "requirements": [
+    "onvif-zeep-async==1.2.1",
+    "WSDiscovery==2.0.0"
+  ],
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/rbtying/hass-onvif-ptz/issues",
+  "version": "0.0.0"
+}
