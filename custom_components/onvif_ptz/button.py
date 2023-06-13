@@ -1,3 +1,5 @@
+"""Implements an element which exposes services to move an ONVIF-compatible camera."""
+
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
@@ -111,6 +113,7 @@ class ONVIFCameraPTZEntity(ONVIFBaseEntity, ButtonEntity):
         return True
 
     async def async_press(self) -> None:
+        """Buttons need to implement `Press` for some reason, so call stop here."""
         await self.device.async_perform_ptz_stop(self.profile)
 
     async def async_perform_ptz_relative(self, translation, speed=None) -> None:

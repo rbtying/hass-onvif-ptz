@@ -1,18 +1,15 @@
 """Custom integration to support general ONVIF PTZ commands in Home Assistant.
-Based substantially on the core ONVIF integration.
 
-For more details about this integration, please refer to
-https://github.com/rbtying/hass-onvif-ptz
+Based substantially on the core ONVIF integration.
+For more details about this integration, please refer to https://github.com/rbtying/hass-onvif-ptz
 """
+
 from __future__ import annotations
 
-from onvif.exceptions import ONVIFAuthError, ONVIFError, ONVIFTimeoutError
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EVENT_HOMEASSISTANT_STOP,
-    HTTP_BASIC_AUTHENTICATION,
-    HTTP_DIGEST_AUTHENTICATION,
     Platform,
 )
 from homeassistant.core import HomeAssistant
@@ -41,7 +38,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data[DOMAIN][entry.unique_id] = device
 
-    platforms = [Platform.SENSOR, Platform.BUTTON]
+    platforms = [Platform.BUTTON]
 
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
 
@@ -55,8 +52,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
 
-    device = hass.data[DOMAIN][entry.unique_id]
-    platforms = [Platform.SENSOR, Platform.BUTTON]
+    hass.data[DOMAIN][entry.unique_id]
+    platforms = [Platform.BUTTON]
 
     return await hass.config_entries.async_unload_platforms(entry, platforms)
 
