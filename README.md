@@ -2,10 +2,8 @@
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE)
 
 [![hacs][hacsbadge]][hacs]
-![Project Maintenance][maintenance-shield]
 
 _Integration to integrate with ONVIF cameras that support pan/tilt/zoom controls_
 
