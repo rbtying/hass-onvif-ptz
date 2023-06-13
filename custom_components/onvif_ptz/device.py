@@ -25,15 +25,7 @@ from homeassistant.core import HomeAssistant
 import homeassistant.util.dt as dt_util
 
 from .const import (
-    ABSOLUTE_MOVE,
-    CONTINUOUS_MOVE,
-    GOTOPRESET_MOVE,
     LOGGER,
-    PAN_FACTOR,
-    RELATIVE_MOVE,
-    STOP_MOVE,
-    TILT_FACTOR,
-    ZOOM_FACTOR,
 )
 from .models import PTZ, Capabilities, DeviceInfo, Profile
 
@@ -104,21 +96,17 @@ class ONVIFDevice:
             self.capabilities = await self.async_get_capabilities()
             LOGGER.debug("Camera %s capabilities = %s", self.name, self.capabilities)
             self.profiles = await self.async_get_profiles()
-            LOGGER.debug("Camera %s profiles = %s", self.name, self.profiles)
+            LOGGER.debug(
+                "Camera %s media profiles with ptz = %s", self.name, self.profiles
+            )
 
-            # No camera profiles to add
+            # No camera ptz nodes to add
             if not self.profiles:
                 return False
 
             if self.capabilities.ptz:
                 self.device.create_ptz_service()
 
-            # Determine max resolution from profiles
-            self.max_resolution = max(
-                profile.video.resolution.width
-                for profile in self.profiles
-                if profile.video.encoding == "H264"
-            )
         except RequestError as err:
             LOGGER.warning(
                 "Couldn't connect to camera '%s', but will retry later. Error: %s",
@@ -281,7 +269,7 @@ class ONVIFDevice:
         return Capabilities(ptz)
 
     async def async_get_profiles(self) -> list[Profile]:
-        """Obtain media profiles for this device."""
+        """Obtain PTZ nodes for this device."""
         media_service = self.device.create_media_service()
         result = await media_service.GetProfiles()
         profiles: list[Profile] = []
@@ -295,6 +283,7 @@ class ONVIFDevice:
                 onvif_profile.token,
                 onvif_profile.Name,
             )
+            LOGGER.debug("media profile %s", onvif_profile)
 
             # Configure PTZ options
             if self.capabilities.ptz and onvif_profile.PTZConfiguration:
@@ -307,141 +296,184 @@ class ONVIFDevice:
                     is not None,
                 )
 
-                try:
-                    ptz_service = self.device.create_ptz_service()
-                    presets = await ptz_service.GetPresets(profile.token)
-                    profile.ptz.presets = [preset.token for preset in presets if preset]
-                except (Fault, RequestError):
-                    # It's OK if Presets aren't supported
-                    profile.ptz.presets = []
-
             profiles.append(profile)
 
         return profiles
 
-    async def async_perform_ptz(
+    async def async_perform_ptz_stop(
         self,
         profile: Profile,
-        distance,
-        speed,
-        move_mode,
-        continuous_duration,
-        preset,
-        pan=None,
-        tilt=None,
-        zoom=None,
+        pan_tilt: bool = None,
+        zoom: bool = None,
     ):
-        """Perform a PTZ action on the camera."""
-        if not self.capabilities.ptz:
-            LOGGER.warning("PTZ actions are not supported on device '%s'", self.name)
+        """Perform a Stop PTZ action on the camera."""
+        LOGGER.debug("Calling Stop PTZ: pan_tilt: %s zoom: %s", pan_tilt, zoom)
+        if not profile.ptz:
+            LOGGER.warning("Stop not supported on device '%s'", self.name)
             return
 
         ptz_service = self.device.create_ptz_service()
+        try:
+            req = ptz_service.create_type("Stop")
+            req.ProfileToken = profile.token
+            if pan_tilt is not None:
+                req.PanTilt = pan_tilt
+            if zoom is not None:
+                req.Zoom = zoom
+            LOGGER.debug("Making Stop request %s", req)
+            await ptz_service.Stop(req)
+        except ONVIFError as err:
+            if "Bad Request" in err.reason:
+                LOGGER.warning("Device '%s' doesn't support PTZ", self.name)
+            else:
+                LOGGER.error("Error trying to perform PTZ action: %s", err)
 
-        pan_val = distance * PAN_FACTOR.get(pan, 0)
-        tilt_val = distance * TILT_FACTOR.get(tilt, 0)
-        zoom_val = distance * ZOOM_FACTOR.get(zoom, 0)
-        speed_val = speed
-        preset_val = preset
+    async def async_perform_ptz_absolute(
+        self,
+        profile: Profile,
+        position,
+        speed=None,
+    ):
+        """Perform a AbsoluteMove PTZ action on the camera."""
+        ptz_service = self.device.create_ptz_service()
+
         LOGGER.debug(
-            (
-                "Calling %s PTZ | Pan = %4.2f | Tilt = %4.2f | Zoom = %4.2f | Speed ="
-                " %4.2f | Preset = %s"
-            ),
-            move_mode,
-            pan_val,
-            tilt_val,
-            zoom_val,
-            speed_val,
-            preset_val,
+            "Calling AbsoluteMove PTZ: position: %s speed: %s", position, speed
         )
         try:
-            req = ptz_service.create_type(move_mode)
+            req = ptz_service.create_type("AbsoluteMove")
             req.ProfileToken = profile.token
-            if move_mode == CONTINUOUS_MOVE:
-                # Guard against unsupported operation
-                if not profile.ptz or not profile.ptz.continuous:
-                    LOGGER.warning(
-                        "ContinuousMove not supported on device '%s'", self.name
-                    )
-                    return
+            if not profile.ptz or not profile.ptz.absolute:
+                LOGGER.warning("AbsoluteMove not supported on device '%s'", self.name)
+                return
 
-                velocity = {}
-                if pan is not None or tilt is not None:
-                    velocity["PanTilt"] = {"x": pan_val, "y": tilt_val}
-                if zoom is not None:
-                    velocity["Zoom"] = {"x": zoom_val}
+            req.Position = position
+            req.Speed = speed
+            LOGGER.debug("Making AbsoluteMove request %s", req)
+            await ptz_service.AbsoluteMove(req)
+        except ONVIFError as err:
+            if "Bad Request" in err.reason:
+                LOGGER.warning("Device '%s' doesn't support PTZ", self.name)
+            else:
+                LOGGER.error("Error trying to perform PTZ action: %s", err)
 
-                req.Velocity = velocity
+    async def async_perform_ptz_continuous(
+        self,
+        profile: Profile,
+        velocity,
+    ):
+        """Perform a AbsoluteMove PTZ action on the camera."""
+        ptz_service = self.device.create_ptz_service()
 
-                await ptz_service.ContinuousMove(req)
-                await asyncio.sleep(continuous_duration)
-                req = ptz_service.create_type("Stop")
-                req.ProfileToken = profile.token
-                await ptz_service.Stop(
-                    {"ProfileToken": req.ProfileToken, "PanTilt": True, "Zoom": False}
-                )
-            elif move_mode == RELATIVE_MOVE:
-                # Guard against unsupported operation
-                if not profile.ptz or not profile.ptz.relative:
-                    LOGGER.warning(
-                        "RelativeMove not supported on device '%s'", self.name
-                    )
-                    return
+        LOGGER.debug("Calling ContinousMove PTZ: velocity: %s", velocity)
+        try:
+            req = ptz_service.create_type("ContinuousMove")
+            req.ProfileToken = profile.token
+            if not profile.ptz or not profile.ptz.continuous:
+                LOGGER.warning("ContinuousMove not supported on device '%s'", self.name)
+                return
 
-                req.Translation = {
-                    "PanTilt": {"x": pan_val, "y": tilt_val},
-                    "Zoom": {"x": zoom_val},
-                }
-                req.Speed = {
-                    "PanTilt": {"x": speed_val, "y": speed_val},
-                    "Zoom": {"x": speed_val},
-                }
-                await ptz_service.RelativeMove(req)
-            elif move_mode == ABSOLUTE_MOVE:
-                # Guard against unsupported operation
-                if not profile.ptz or not profile.ptz.absolute:
-                    LOGGER.warning(
-                        "AbsoluteMove not supported on device '%s'", self.name
-                    )
-                    return
+            req.Velocity = velocity
+            LOGGER.debug("Making ContinuousMove request %s", req)
+            await ptz_service.ContinuousMove(req)
+        except ONVIFError as err:
+            if "Bad Request" in err.reason:
+                LOGGER.warning("Device '%s' doesn't support PTZ", self.name)
+            else:
+                LOGGER.error("Error trying to perform PTZ action: %s", err)
 
-                req.Position = {
-                    "PanTilt": {"x": pan_val, "y": tilt_val},
-                    "Zoom": {"x": zoom_val},
-                }
-                req.Speed = {
-                    "PanTilt": {"x": speed_val, "y": speed_val},
-                    "Zoom": {"x": speed_val},
-                }
-                await ptz_service.AbsoluteMove(req)
-            elif move_mode == GOTOPRESET_MOVE:
-                # Guard against unsupported operation
-                if not profile.ptz or not profile.ptz.presets:
-                    LOGGER.warning(
-                        "Absolute Presets not supported on device '%s'", self.name
-                    )
-                    return
-                if preset_val not in profile.ptz.presets:
-                    LOGGER.warning(
-                        (
-                            "PTZ preset '%s' does not exist on device '%s'. Available"
-                            " Presets: %s"
-                        ),
-                        preset_val,
-                        self.name,
-                        ", ".join(profile.ptz.presets),
-                    )
-                    return
+    async def async_perform_ptz_relative(
+        self,
+        profile: Profile,
+        translation,
+        speed=None,
+    ):
+        """Perform a RelativeMove PTZ action on the camera."""
+        ptz_service = self.device.create_ptz_service()
 
-                req.PresetToken = preset_val
-                req.Speed = {
-                    "PanTilt": {"x": speed_val, "y": speed_val},
-                    "Zoom": {"x": speed_val},
-                }
-                await ptz_service.GotoPreset(req)
-            elif move_mode == STOP_MOVE:
-                await ptz_service.Stop(req)
+        LOGGER.debug(
+            "Calling RelativeMove PTZ: translation: %s speed: %s", translation, speed
+        )
+        try:
+            req = ptz_service.create_type("RelativeMove")
+            req.ProfileToken = profile.token
+            if not profile.ptz or not profile.ptz.relative:
+                LOGGER.warning("RelativeMove not supported on device '%s'", self.name)
+                return
+
+            req.Translation = translation
+            req.Speed = speed
+            LOGGER.debug("Making RelativeMove request %s", req)
+            await ptz_service.RelativeMove(req)
+            # if move_mode == CONTINUOUS_MOVE:
+            #     # Guard against unsupported operation
+            #     if not profile.ptz or not profile.ptz.continuous:
+            #         LOGGER.warning(
+            #             "ContinuousMove not supported on device '%s'", self.name
+            #         )
+            #         return
+
+            #     velocity = {}
+            #     if pan is not None or tilt is not None:
+            #         velocity["PanTilt"] = {"x": pan_val, "y": tilt_val}
+            #     if zoom is not None:
+            #         velocity["Zoom"] = {"x": zoom_val}
+
+            #     req.Velocity = velocity
+
+            #     await ptz_service.ContinuousMove(req)
+            #     await asyncio.sleep(continuous_duration)
+            #     req = ptz_service.create_type("Stop")
+            #     req.ProfileToken = profile.token
+            #     await ptz_service.Stop(
+            #         {"ProfileToken": req.ProfileToken, "PanTilt": True, "Zoom": False}
+            #     )
+            # elif move_mode == RELATIVE_MOVE:
+            # Guard against unsupported operation
+            # elif move_mode == ABSOLUTE_MOVE:
+            #     # Guard against unsupported operation
+            #     if not profile.ptz or not profile.ptz.absolute:
+            #         LOGGER.warning(
+            #             "AbsoluteMove not supported on device '%s'", self.name
+            #         )
+            #         return
+
+            #     req.Position = {
+            #         "PanTilt": {"x": pan_val, "y": tilt_val},
+            #         "Zoom": {"x": zoom_val},
+            #     }
+            #     req.Speed = {
+            #         "PanTilt": {"x": speed_val, "y": speed_val},
+            #         "Zoom": {"x": speed_val},
+            #     }
+            #     await ptz_service.AbsoluteMove(req)
+            # elif move_mode == GOTOPRESET_MOVE:
+            #     # Guard against unsupported operation
+            #     if not profile.ptz or not profile.ptz.presets:
+            #         LOGGER.warning(
+            #             "Absolute Presets not supported on device '%s'", self.name
+            #         )
+            #         return
+            #     if preset_val not in profile.ptz.presets:
+            #         LOGGER.warning(
+            #             (
+            #                 "PTZ preset '%s' does not exist on device '%s'. Available"
+            #                 " Presets: %s"
+            #             ),
+            #             preset_val,
+            #             self.name,
+            #             ", ".join(profile.ptz.presets),
+            #         )
+            #         return
+
+            #     req.PresetToken = preset_val
+            #     req.Speed = {
+            #         "PanTilt": {"x": speed_val, "y": speed_val},
+            #         "Zoom": {"x": speed_val},
+            #     }
+            #     await ptz_service.GotoPreset(req)
+            # elif move_mode == STOP_MOVE:
+            #     await ptz_service.Stop(req)
         except ONVIFError as err:
             if "Bad Request" in err.reason:
                 LOGGER.warning("Device '%s' doesn't support PTZ", self.name)

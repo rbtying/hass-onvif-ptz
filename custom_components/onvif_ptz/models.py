@@ -22,7 +22,6 @@ class PTZ:
     continuous: bool
     relative: bool
     absolute: bool
-    presets: list[str] | None = None
 
 
 @dataclass

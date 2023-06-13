@@ -69,14 +69,6 @@ class OnvifFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    @staticmethod
-    @callback
-    def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
-    ) -> OnvifOptionsFlowHandler:
-        """Get the options flow for this handler."""
-        return OnvifOptionsFlowHandler(config_entry)
-
     def __init__(self):
         """Initialize the ONVIF config flow."""
         self.device_id = None
@@ -232,10 +224,10 @@ class OnvifFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
             # Verify there is support for PTZ
-            media_service = device.create_media_service()
-            profiles = await media_service.GetProfiles()
+            ptz_service = device.create_ptz_service()
+            nodes = await ptz_service.GetNodes()
 
-            if not any(profile.PTZConfiguration for profile in profiles):
+            if not nodes:
                 return self.async_abort(reason="no_ptz")
 
             title = f"{self.onvif_config[CONF_NAME]} - {self.device_id}"
@@ -251,26 +243,3 @@ class OnvifFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         finally:
             await device.close()
-
-
-class OnvifOptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle ONVIF options."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize ONVIF options flow."""
-        self.config_entry = config_entry
-        self.options = dict(config_entry.options)
-
-    async def async_step_init(self, user_input=None):
-        """Manage the ONVIF options."""
-        return await self.async_step_onvif_devices()
-
-    async def async_step_onvif_devices(self, user_input=None):
-        """Manage the ONVIF devices options."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=self.options)
-
-        return self.async_show_form(
-            step_id="onvif_devices",
-            data_schema=vol.Schema({}),
-        )
