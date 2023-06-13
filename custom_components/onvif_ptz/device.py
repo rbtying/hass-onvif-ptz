@@ -104,7 +104,7 @@ class ONVIFDevice:
                 return False
 
             if self.capabilities.ptz:
-                self.device.create_ptz_service()
+                await self.device.create_ptz_service()
 
         except RequestError as err:
             LOGGER.warning(
@@ -133,7 +133,7 @@ class ONVIFDevice:
 
     async def async_manually_set_date_and_time(self) -> None:
         """Set Date and Time Manually using SetSystemDateAndTime command."""
-        device_mgmt = self.device.create_devicemgmt_service()
+        device_mgmt = await self.device.create_devicemgmt_service()
 
         # Retrieve DateTime object from camera to use as template for Set operation
         device_time = await device_mgmt.GetSystemDateAndTime()
@@ -160,7 +160,7 @@ class ONVIFDevice:
     async def async_check_date_and_time(self) -> None:
         """Warns if device and system date not synced."""
         LOGGER.debug("Setting up the ONVIF device management service")
-        device_mgmt = self.device.create_devicemgmt_service()
+        device_mgmt = await self.device.create_devicemgmt_service()
 
         LOGGER.debug("Retrieving current device date/time")
         try:
@@ -230,7 +230,7 @@ class ONVIFDevice:
 
     async def async_get_device_info(self) -> DeviceInfo:
         """Obtain information about this device."""
-        device_mgmt = self.device.create_devicemgmt_service()
+        device_mgmt = await self.device.create_devicemgmt_service()
         device_info = await device_mgmt.GetDeviceInformation()
 
         # Grab the last MAC address for backwards compatibility
@@ -269,7 +269,7 @@ class ONVIFDevice:
 
     async def async_get_profiles(self) -> list[Profile]:
         """Obtain PTZ nodes for this device."""
-        media_service = self.device.create_media_service()
+        media_service = await self.device.create_media_service()
         result = await media_service.GetProfiles()
         profiles: list[Profile] = []
 
@@ -311,7 +311,7 @@ class ONVIFDevice:
             LOGGER.warning("Stop not supported on device '%s'", self.name)
             return
 
-        ptz_service = self.device.create_ptz_service()
+        ptz_service = await self.device.create_ptz_service()
         try:
             req = ptz_service.create_type("Stop")
             req.ProfileToken = profile.token
@@ -334,7 +334,7 @@ class ONVIFDevice:
         speed=None,
     ):
         """Perform a AbsoluteMove PTZ action on the camera."""
-        ptz_service = self.device.create_ptz_service()
+        ptz_service = await self.device.create_ptz_service()
 
         LOGGER.debug(
             "Calling AbsoluteMove PTZ: position: %s speed: %s", position, speed
@@ -362,7 +362,7 @@ class ONVIFDevice:
         velocity,
     ):
         """Perform a AbsoluteMove PTZ action on the camera."""
-        ptz_service = self.device.create_ptz_service()
+        ptz_service = await self.device.create_ptz_service()
 
         LOGGER.debug("Calling ContinousMove PTZ: velocity: %s", velocity)
         try:
@@ -388,7 +388,7 @@ class ONVIFDevice:
         speed=None,
     ):
         """Perform a RelativeMove PTZ action on the camera."""
-        ptz_service = self.device.create_ptz_service()
+        ptz_service = await self.device.create_ptz_service()
 
         LOGGER.debug(
             "Calling RelativeMove PTZ: translation: %s speed: %s", translation, speed

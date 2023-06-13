@@ -180,7 +180,7 @@ class OnvifFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             await device.update_xaddrs()
-            device_mgmt = device.create_devicemgmt_service()
+            device_mgmt = await device.create_devicemgmt_service()
 
             # Get the MAC address to use as the unique ID for the config flow
             if not self.device_id:
@@ -223,7 +223,7 @@ class OnvifFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
             # Verify there is support for PTZ
-            ptz_service = device.create_ptz_service()
+            ptz_service = await device.create_ptz_service()
             nodes = await ptz_service.GetNodes()
 
             if not nodes:
