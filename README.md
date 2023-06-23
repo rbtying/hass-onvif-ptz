@@ -22,6 +22,10 @@ ptz_relative | ONVIF RelativeMove command, moves the camera relative to the curr
 ptz_absolute | ONVIF AbsoluteMove command, moves the camera to a specified position
 ptz_continuous | ONVIF ContinuousMove command, moves the camera at a specified velocity
 ptz_stop | Stops camera movement
+ptz_set_home_position | Sets the home position
+ptz_goto_home_position | Goes to the home position
+ptz_set_preset | Sets a preset
+ptz_goto_preset | Goes to a preset
 
 ## Installation
 
