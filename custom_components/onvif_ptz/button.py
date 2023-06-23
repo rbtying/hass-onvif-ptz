@@ -17,10 +17,16 @@ from .const import (
     ATTR_PANTILT,
     ATTR_ZOOM,
     ATTR_TIMEOUT,
+    ATTR_PRESET,
+    ATTR_NAME,
     SERVICE_RELATIVE_MOVE_PTZ,
     SERVICE_ABSOLUTE_MOVE_PTZ,
     SERVICE_CONTINUOUS_MOVE_PTZ,
     SERVICE_STOP_PTZ,
+    SERVICE_GOTO_HOME_POSITION,
+    SERVICE_GOTO_PRESET,
+    SERVICE_SET_HOME_POSITION,
+    SERVICE_SET_PRESET,
     DOMAIN,
 )
 from .device import ONVIFDevice
@@ -81,6 +87,34 @@ async def async_setup_entry(
         },
         "async_perform_ptz_stop",
     )
+    platform.async_register_entity_service(
+        SERVICE_SET_HOME_POSITION,
+        {},
+        "async_perform_ptz_set_home_position",
+    )
+    platform.async_register_entity_service(
+        SERVICE_GOTO_HOME_POSITION,
+        {
+            vol.Optional(ATTR_SPEED): PTZ_SCHEMA,
+        },
+        "async_perform_ptz_goto_home_position",
+    )
+    platform.async_register_entity_service(
+        SERVICE_SET_PRESET,
+        {
+            vol.Required(ATTR_PRESET): cv.string,
+            vol.Optional(ATTR_NAME): cv.string,
+        },
+        "async_perform_ptz_set_preset",
+    )
+    platform.async_register_entity_service(
+        SERVICE_GOTO_PRESET,
+        {
+            vol.Required(ATTR_PRESET): cv.string,
+            vol.Optional(ATTR_SPEED): PTZ_SCHEMA,
+        },
+        "async_perform_ptz_goto_preset",
+    )
 
     device = hass.data[DOMAIN][config_entry.unique_id]
     async_add_entities(
@@ -132,4 +166,26 @@ class ONVIFCameraPTZEntity(ONVIFBaseEntity, ButtonEntity):
         """Perform a Stop PTZ action on the camera."""
         await self.device.async_perform_ptz_stop(
             self.profile, pan_tilt=pan_tilt, zoom=zoom
+        )
+
+    async def async_perform_ptz_set_home_position(self) -> None:
+        """Perform a SetHomePosition PTZ action on the camera."""
+        await self.device.async_perform_ptz_set_home_position(self.profile)
+
+    async def async_perform_ptz_goto_home_position(self, speed=None) -> None:
+        """Perform a GotoHomePosition PTZ action on the camera."""
+        await self.device.async_perform_ptz_goto_home_position(
+            self.profile, speed=speed
+        )
+
+    async def async_perform_ptz_set_preset(self, preset, name=None) -> None:
+        """Perform a SetPreset PTZ action on the camera."""
+        await self.device.async_perform_ptz_set_preset(
+            self.profile, preset=preset, name=name
+        )
+
+    async def async_perform_ptz_goto_preset(self, preset, speed=None) -> None:
+        """Perform a GotoPreset PTZ action on the camera."""
+        await self.device.async_perform_ptz_goto_preset(
+            self.profile, preset=preset, speed=speed
         )

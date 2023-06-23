@@ -28,7 +28,7 @@ ptz_absolute:
   description: >
     If your ONVIF camera supports AbsoluteMove PTZ, you will be able to pan,
     tilt or zoom your camera. Not all cameras which support PTZ support
-    absoluteMove. Camera devices may have multiple PTZ nodes, you usually want
+    AbsoluteMove. Camera devices may have multiple PTZ nodes, you usually want
     to select a single entity rather than a device.
   target:
     entity:
@@ -53,7 +53,7 @@ ptz_continuous:
   description: >
     If your ONVIF camera supports ContinuousMove PTZ, you will be able to pan,
     tilt or zoom your camera. Not all cameras which support PTZ support
-    absoluteMove. Camera devices may have multiple PTZ nodes, you usually want
+    ContinuousMove. Camera devices may have multiple PTZ nodes, you usually want
     to select a single entity rather than a device.
   target:
     entity:
@@ -67,19 +67,21 @@ ptz_continuous:
       description: "How to translate the camera (usually, {PanTilt: {x: 0, y: 0}, Zoom: 0})"
       selector:
         object:
-    speed:
-      name: Speed
-      description: How fast to translate the camera (optional, same format as translation)
+    timeout:
+      name: Timeout
+      description: "How long to move for (optional)"
       selector:
-        object:
+        number:
+          min: 0
+          max: 100
 
 ptz_stop:
   name: PTZ (Stop)
   description: >
     If your ONVIF camera supports PTZ, you will be able to pan, tilt or zoom
-    your camera. This command stops any ongoing movement. Not all cameras which
-    support PTZ support absoluteMove. Camera devices may have multiple PTZ
-    nodes, you usually want to select a single entity rather than a device.
+    your camera. This command stops any ongoing movement. Camera devices may
+    have multiple PTZ nodes, you usually want to select a single entity rather
+    than a device.
   target:
     entity:
       integration: onvif_ptz
@@ -97,3 +99,83 @@ ptz_stop:
       description: Stop zoom
       selector:
         boolean:
+
+ptz_set_home_position:
+  name: PTZ (SetHomePosition)
+  description: >
+    Set the home position for the camera. Not all cameras which support PTZ
+    support setting the home position. Camera devices may have multiple PTZ
+    nodes, you usually want to select a single entity rather than a device.
+  target:
+    entity:
+      integration: onvif_ptz
+      domain: button
+    device:
+      integration: onvif_ptz
+
+ptz_goto_home_position:
+  name: PTZ (GotoHomePosition)
+  description: >
+    Go to the home position for the camera. Not all cameras which support PTZ
+    support the home position. Camera devices may have multiple PTZ nodes, you
+    usually want to select a single entity rather than a device.
+  target:
+    entity:
+      integration: onvif_ptz
+      domain: button
+    device:
+      integration: onvif_ptz
+  fields:
+    speed:
+      name: Speed
+      description: How fast to translate the camera (optional, same format as translation)
+      selector:
+        object:
+
+ptz_set_preset:
+  name: PTZ (SetPreset)
+  description: >
+    Set the specified preset for the camera. Not all cameras which support PTZ
+    support setting the home position. Camera devices may have multiple PTZ
+    nodes, you usually want to select a single entity rather than a device.
+  target:
+    entity:
+      integration: onvif_ptz
+      domain: button
+    device:
+      integration: onvif_ptz
+  fields:
+    preset:
+      name: Preset
+      description: Which preset to set (often, a number)
+      selector:
+        text:
+    name:
+      name: Name
+      description: The name for the preset (optional)
+      selector:
+        text:
+
+ptz_goto_preset:
+  name: PTZ (GotoPreset)
+  description: >
+    Go to the specified preset for the camera. Not all cameras which support PTZ
+    support the home position. Camera devices may have multiple PTZ nodes, you
+    usually want to select a single entity rather than a device.
+  target:
+    entity:
+      integration: onvif_ptz
+      domain: button
+    device:
+      integration: onvif_ptz
+  fields:
+    speed:
+      name: Speed
+      description: How fast to translate the camera (optional, same format as translation)
+      selector:
+        object:
+    preset:
+      name: Preset
+      description: Which preset to go to (often, a number)
+      selector:
+        text:

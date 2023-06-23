@@ -1,5 +1,6 @@
 """ONVIF device abstraction."""
 from __future__ import annotations
+from typing import Optional
 
 from contextlib import suppress
 import datetime as dt
@@ -75,7 +76,6 @@ class ONVIFDevice:
     async def async_setup(self) -> bool:
         """Set up the device."""
         self.device = get_device(
-            self.hass,
             host=self.config_entry.data[CONF_HOST],
             port=self.config_entry.data[CONF_PORT],
             username=self.config_entry.data[CONF_USERNAME],
@@ -360,11 +360,14 @@ class ONVIFDevice:
         self,
         profile: Profile,
         velocity,
+        timeout,
     ):
         """Perform a ContinuousMove PTZ action on the camera."""
         ptz_service = await self.device.create_ptz_service()
 
-        LOGGER.debug("Calling ContinousMove PTZ: velocity: %s", velocity)
+        LOGGER.debug(
+            "Calling ContinousMove PTZ: velocity: %s, timeout: %s", velocity, timeout
+        )
         try:
             req = ptz_service.create_type("ContinuousMove")
             req.ProfileToken = profile.token
@@ -373,6 +376,7 @@ class ONVIFDevice:
                 return
 
             req.Velocity = velocity
+            req.Timeout = timeout
             LOGGER.debug("Making ContinuousMove request %s", req)
             await ptz_service.ContinuousMove(req)
         except ONVIFError as err:
@@ -410,8 +414,108 @@ class ONVIFDevice:
             else:
                 LOGGER.error("Error trying to perform PTZ action: %s", err)
 
+    async def async_perform_ptz_set_home_position(
+        self,
+        profile: Profile,
+    ):
+        """Perform a SetHomePosition PTZ action on the camera."""
+        ptz_service = await self.device.create_ptz_service()
 
-def get_device(hass, host, port, username, password) -> ONVIFCamera:
+        LOGGER.debug("Calling SetHomePosition")
+        try:
+            if not profile.ptz:
+                LOGGER.warning(
+                    "SetHomePosition not supported on device '%s'", self.name
+                )
+                return
+
+            LOGGER.debug("Making SetHomePosition request %s", profile.token)
+            await ptz_service.SetHomePosition(profile.token)
+        except ONVIFError as err:
+            if "Bad Request" in err.reason:
+                LOGGER.warning("Device '%s' doesn't support PTZ", self.name)
+            else:
+                LOGGER.error("Error trying to perform PTZ action: %s", err)
+
+    async def async_perform_ptz_goto_home_position(self, profile: Profile, speed=None):
+        """Perform a GotoHomePosition PTZ action on the camera."""
+        ptz_service = await self.device.create_ptz_service()
+
+        LOGGER.debug("Calling GotoHomePosition speed=%s", speed)
+        try:
+            if not profile.ptz:
+                LOGGER.warning(
+                    "GotoHomePosition not supported on device '%s'", self.name
+                )
+                return
+
+            req = ptz_service.create_type("GotoHomePosition")
+            req.ProfileToken = profile.token
+            req.Speed = speed
+
+            LOGGER.debug("Making GotoHomePosition request %s", req)
+            await ptz_service.GotoHomePosition(req)
+        except ONVIFError as err:
+            if "Bad Request" in err.reason:
+                LOGGER.warning("Device '%s' doesn't support PTZ", self.name)
+            else:
+                LOGGER.error("Error trying to perform PTZ action: %s", err)
+
+    async def async_perform_ptz_set_preset(
+        self,
+        profile: Profile,
+        preset: str,
+        name: Optional[str] = None,
+    ):
+        """Perform a SetPreset PTZ action on the camera."""
+        ptz_service = await self.device.create_ptz_service()
+
+        LOGGER.debug("Calling SetPreset preset=%s name=%s", preset, name)
+        try:
+            if not profile.ptz:
+                LOGGER.warning("SetPreset not supported on device '%s'", self.name)
+                return
+
+            req = ptz_service.create_type("SetPreset")
+            req.ProfileToken = profile.token
+            req.PresetToken = preset
+            req.PresetName = name
+
+            LOGGER.debug("Making SetPreset request %s", req)
+            await ptz_service.SetPreset(req)
+        except ONVIFError as err:
+            if "Bad Request" in err.reason:
+                LOGGER.warning("Device '%s' doesn't support PTZ", self.name)
+            else:
+                LOGGER.error("Error trying to perform PTZ action: %s", err)
+
+    async def async_perform_ptz_goto_preset(
+        self, profile: Profile, preset: str, speed=None
+    ):
+        """Perform a GotoPreset PTZ action on the camera."""
+        ptz_service = await self.device.create_ptz_service()
+
+        LOGGER.debug("Calling SetPreset preset=%s speed=%s", preset, speed)
+        try:
+            if not profile.ptz:
+                LOGGER.warning("GotoPrest not supported on device '%s'", self.name)
+                return
+
+            req = ptz_service.create_type("GotoPreset")
+            req.ProfileToken = profile.token
+            req.PresetToken = preset
+            req.Speed = speed
+
+            LOGGER.debug("Making GotoPreset request %s", req)
+            await ptz_service.GotoPreset(req)
+        except ONVIFError as err:
+            if "Bad Request" in err.reason:
+                LOGGER.warning("Device '%s' doesn't support PTZ", self.name)
+            else:
+                LOGGER.error("Error trying to perform PTZ action: %s", err)
+
+
+def get_device(host, port, username, password) -> ONVIFCamera:
     """Get ONVIFCamera instance."""
     return ONVIFCamera(
         host,
