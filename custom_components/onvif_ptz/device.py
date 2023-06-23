@@ -361,7 +361,7 @@ class ONVIFDevice:
         profile: Profile,
         velocity,
     ):
-        """Perform a AbsoluteMove PTZ action on the camera."""
+        """Perform a ContinuousMove PTZ action on the camera."""
         ptz_service = await self.device.create_ptz_service()
 
         LOGGER.debug("Calling ContinousMove PTZ: velocity: %s", velocity)
